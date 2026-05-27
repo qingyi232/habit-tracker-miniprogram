@@ -1,0 +1,266 @@
+===============================================================
+  习惯自律养成微信小程序 — 代码说明文档
+===============================================================
+
+一、项目概述
+===============================================================
+
+项目名称：习惯自律养成微信小程序
+技术架构：B/S 架构（浏览器/服务器）
+前端框架：UNI-APP（基于 Vue.js 的跨平台框架）
+后端框架：SSM（Spring Boot + MyBatis-Plus）/ Node.js + Express
+数据库：MySQL 8.0
+管理后台：Vue 3 单页面应用
+
+系统角色：
+  - 用户（小程序端）：注册登录、创建学习计划、每日打卡、查看排行榜、社区交流
+  - 管理员（网页端）：管理用户、管理计划、管理留言、数据统计
+
+
+二、数据库设计
+===============================================================
+
+数据库名：habit_app
+字符集：utf8mb4
+
+共 6 张表：
+
+【1】admin - 管理员表
+  字段：id, username, password, role, addtime
+  说明：存储管理员登录信息
+
+【2】yonghu - 用户表
+  字段：id, addtime, zhanghao(账号), mima(密码), xingming(姓名),
+        xingbie(性别), nianling(年龄), shouji(手机), youxiang(邮箱),
+        zhaopian(照片), jifen(积分)
+  说明：存储小程序用户信息，积分通过打卡累积
+
+【3】xuexijihua - 学习计划表
+  字段：id, addtime, jihuabiaoti(计划标题), jihuatupian(计划图片),
+        kaishiriqi(开始日期), jihuaneirong(计划内容), jieshushijian(结束时间),
+        jihuatianshu(计划天数), wanchengdu(完成度), zhanghao, xingming, userid
+  说明：存储用户创建的学习计划
+
+【4】jihuadaka - 计划打卡表
+  字段：继承学习计划所有字段 + dakariqi(打卡日期), dakatianshu(打卡天数),
+        jihuaid(关联计划id)
+  说明：每次打卡生成一条记录，自动给用户加 10 积分
+
+【5】jihualishibiao - 计划历史表
+  字段：继承学习计划所有字段 + wanchengriqi(完成日期)
+  说明：计划完成或到期后转移到历史表
+
+【6】liuyanban - 留言板表
+  字段：id, addtime, userid, username, content(留言内容), reply(回复内容)
+  说明：社区交流留言，管理员可回复
+
+
+三、API 接口说明
+===============================================================
+
+基础地址：http://localhost:3900/api
+所有接口返回统一格式：{ code: 0, data: {...}, msg: "..." }
+code=0 表示成功，code=-1 表示失败
+
+【公共接口 /api/common】
+  POST /login        - 登录（用户/管理员）
+  POST /register     - 用户注册
+  GET  /leaderboard  - 获取积分排行榜（前20名）
+
+【用户接口 /api/yonghu】
+  GET    /list          - 用户列表（分页，支持按账号/姓名搜索）
+  GET    /info/:id      - 获取用户详情
+  POST   /add           - 添加用户
+  PUT    /update/:id    - 修改用户信息
+  DELETE /delete/:id    - 删除用户
+  PUT    /updateJifen/:id - 更新积分
+
+【学习计划接口 /api/xuexijihua】
+  GET    /list          - 计划列表（分页，支持按标题/用户搜索）
+  GET    /info/:id      - 计划详情
+  POST   /add           - 创建计划
+  PUT    /update/:id    - 修改计划
+  DELETE /delete/:id    - 删除计划
+
+【打卡接口 /api/jihuadaka】
+  GET    /list          - 打卡记录列表
+  GET    /info/:id      - 打卡详情
+  POST   /add           - 打卡（自动加 10 积分）
+  PUT    /update/:id    - 修改打卡记录
+  DELETE /delete/:id    - 删除打卡记录
+
+【计划历史接口 /api/jihualishibiao】
+  GET    /list          - 历史记录列表
+  GET    /info/:id      - 历史详情
+  POST   /add           - 添加历史记录
+  DELETE /delete/:id    - 删除历史记录
+
+【留言板接口 /api/liuyanban】
+  GET    /list          - 留言列表
+  GET    /info/:id      - 留言详情
+  POST   /add           - 发布留言
+  PUT    /reply/:id     - 管理员回复
+  DELETE /delete/:id    - 删除留言
+
+【文件上传接口 /api/upload】
+  POST   /              - 上传文件（表单字段名：file）
+
+【管理后台接口 /api/admin】
+  GET    /list          - 管理员列表
+  GET    /info/:id      - 管理员详情
+  POST   /add           - 添加管理员
+  PUT    /update/:id    - 修改管理员
+  DELETE /delete/:id    - 删除管理员
+
+
+四、前端页面说明
+===============================================================
+
+共 12 个页面，4 个 Tab 页 + 8 个子页面：
+
+【Tab 页面（底部导航）】
+1. pages/index/index        - 首页
+   功能：显示问候语、积分、搜索、快捷入口、学习计划列表
+   数据来源：/xuexijihua/list（所有学习计划）
+
+2. pages/leaderboard/leaderboard - 积分排行榜
+   功能：展示用户积分排名（前三名突出显示）
+   数据来源：/common/leaderboard
+
+3. pages/community/community - 交流社区
+   功能：发布留言、查看留言列表、管理员回复
+   数据来源：/liuyanban/list, /liuyanban/add
+
+4. pages/my/my               - 我的
+   功能：个人信息、积分统计、菜单导航、退出登录
+   数据来源：/yonghu/info/:id
+
+【子页面】
+5. pages/login/login         - 登录页
+   功能：账号密码登录，区分用户/管理员
+   接口：/common/login
+
+6. pages/register/register   - 注册页
+   功能：新用户注册
+   接口：/common/register
+
+7. pages/create-plan/create-plan - 创建计划
+   功能：填写计划标题、内容、起止日期，自动分配封面图
+   接口：/xuexijihua/add
+
+8. pages/plan-detail/plan-detail - 计划详情
+   功能：查看计划信息、打卡记录、跳转打卡
+   接口：/xuexijihua/info/:id, /jihuadaka/list
+
+9. pages/checkin/checkin     - 打卡页
+   功能：选择日期、填写心得、完成打卡（+10积分）
+   接口：/jihuadaka/add
+
+10. pages/my-plans/my-plans  - 我的计划
+    功能：查看当前用户的所有学习计划
+    接口：/xuexijihua/list?userid=xxx
+
+11. pages/plan-history/plan-history - 计划历史
+    功能：查看已完成的计划
+    接口：/jihualishibiao/list?userid=xxx
+
+12. pages/edit-profile/edit-profile - 编辑资料
+    功能：修改姓名、性别、手机、邮箱
+    接口：/yonghu/update/:id
+
+
+五、后端代码结构说明
+===============================================================
+
+【Node.js 后端（backend/）】
+
+app.js          - 主入口文件，注册路由、启动服务器
+config/db.js    - MySQL 数据库连接池配置
+initdb.js       - 数据库初始化脚本（读取 db/init.sql）
+db/init.sql     - 建表语句和初始数据
+
+routes/ 目录下每个文件对应一组 API：
+  common.js     - 登录、注册、排行榜（公共接口）
+  user.js       - 用户 CRUD
+  plan.js       - 学习计划 CRUD
+  checkin.js    - 打卡 CRUD（含自动加积分逻辑）
+  history.js    - 计划历史 CRUD
+  message.js    - 留言板 CRUD（含回复功能）
+  admin.js      - 管理员 CRUD
+  upload.js     - 文件上传（使用 multer 中间件）
+
+
+【Java SSM 后端（backend-java/）】
+
+采用 Spring Boot 2.7 + MyBatis-Plus 3.5 架构
+
+pom.xml                       - Maven 依赖配置
+HabitApplication.java         - Spring Boot 启动类
+config/CorsConfig.java        - 跨域配置和静态资源映射
+config/MybatisPlusConfig.java - 分页插件和自动填充配置
+common/R.java                 - 统一返回结果封装类
+
+entity/ 目录 - 实体类（对应数据库表）：
+  Admin.java, Yonghu.java, Xuexijihua.java,
+  Jihuadaka.java, Jihualishibiao.java, Liuyanban.java
+
+mapper/ 目录 - MyBatis Mapper 接口：
+  继承 BaseMapper，提供基础 CRUD
+  YonghuMapper 额外提供 addJifen 方法
+
+controller/ 目录 - 控制器（处理 HTTP 请求）：
+  CommonController   - 登录/注册/排行榜
+  AdminController    - 管理员管理
+  YonghuController   - 用户管理
+  XuexijihuaController   - 学习计划管理
+  JihuadakaController    - 打卡管理（含自动加积分）
+  JihualishibiaoController - 计划历史
+  LiuyanbanController     - 留言板管理
+  UploadController         - 文件上传
+
+★ Java 后端的 API 接口和 Node.js 后端完全一致，前端无需修改
+
+
+六、核心业务逻辑说明
+===============================================================
+
+【1】用户注册登录流程
+  用户在小程序端注册 → 信息存入 yonghu 表
+  登录时验证账号密码 → 成功返回用户信息和 token
+  用户信息存储在小程序本地 Storage 中
+
+【2】学习计划创建流程
+  用户填写计划标题、内容、起止日期
+  系统自动计算计划天数、分配随机封面图
+  调用 /xuexijihua/add 接口存入数据库
+
+【3】打卡与积分机制
+  用户在计划详情页点击"去打卡"
+  填写打卡日期、第几天、今日心得
+  调用 /jihuadaka/add 接口：
+    1. 创建打卡记录
+    2. 自动给用户加 10 积分（UPDATE yonghu SET jifen = jifen + 10）
+  积分反映在排行榜中，实时变化
+
+【4】社区留言与回复
+  用户在社区页面发布留言 → 存入 liuyanban 表
+  管理员在后台查看留言 → 回复存入 reply 字段
+  小程序端显示留言和管理员回复
+
+【5】管理后台功能
+  管理员通过 http://localhost:3900/admin 登录
+  可以管理：用户、计划、打卡记录、留言、计划历史
+  支持分页查询、搜索、增删改操作
+
+
+七、技术要点
+===============================================================
+
+1. 前端使用 UNI-APP 框架，一套代码编译到微信小程序
+2. 后端使用 RESTful API 风格，前后端分离
+3. 数据库使用 MySQL，支持事务和索引
+4. 文件上传使用 multer（Node.js）/ MultipartFile（Java）
+5. 跨域处理使用 CORS 中间件
+6. 分页查询使用 LIMIT + OFFSET（Node.js）/ MyBatis-Plus Page（Java）
+7. 管理后台使用 Vue 3 CDN 版本，无需编译
+===============================================================

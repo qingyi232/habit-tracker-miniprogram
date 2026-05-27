@@ -1,0 +1,105 @@
+==========================================
+  习惯小程序 - 打卡日期格式Bug修复补丁
+  修复时间：2026-05-14
+==========================================
+
+【问题描述】
+打卡时报错：Incorrect date value: '2026-05-12T16:00:00.000Z' for column 'kaishiriqi' at row 1
+原因：日期字段传入了 ISO 8601 格式，MySQL DATE 列无法解析。
+
+【修改文件列表】共 5 个文件
+
+==========================================
+文件1：JihuadakaController.java（计划打卡控制器）
+==========================================
+补丁位置：bugfix-patch\backend-java\src\main\java\com\habit\controller\JihuadakaController.java
+覆盖到项目：backend-java\src\main\java\com\habit\controller\JihuadakaController.java
+改动说明：
+  - add() 方法：插入前对 kaishiriqi/jieshushijian/dakariqi 三个日期字段做格式清洗
+  - update() 方法：更新前同样做日期格式清洗
+  - list() 方法：新增 jihuaid 查询参数（修复按计划筛选打卡记录无效的Bug）
+  - 新增 toDateOnly() 私有方法：截取日期字符串前10位（YYYY-MM-DD）
+
+==========================================
+文件2：XuexijihuaController.java（学习计划控制器）
+==========================================
+补丁位置：bugfix-patch\backend-java\src\main\java\com\habit\controller\XuexijihuaController.java
+覆盖到项目：backend-java\src\main\java\com\habit\controller\XuexijihuaController.java
+改动说明：
+  - add() 方法：插入前对 kaishiriqi/jieshushijian 两个日期字段做格式清洗
+  - update() 方法：更新前同样做日期格式清洗
+  - 新增 toDateOnly() 私有方法
+
+==========================================
+文件3：JihualishibiaoController.java（计划历史控制器）
+==========================================
+补丁位置：bugfix-patch\backend-java\src\main\java\com\habit\controller\JihualishibiaoController.java
+覆盖到项目：backend-java\src\main\java\com\habit\controller\JihualishibiaoController.java
+改动说明：
+  - add() 方法：插入前对 kaishiriqi/jieshushijian/wanchengriqi 三个日期字段做格式清洗
+  - 新增 toDateOnly() 私有方法
+
+==========================================
+文件4：Jihuadaka.java（计划打卡实体类）
+==========================================
+补丁位置：bugfix-patch\backend-java\src\main\java\com\habit\entity\Jihuadaka.java
+覆盖到项目：backend-java\src\main\java\com\habit\entity\Jihuadaka.java
+改动说明：
+  - 新增 budaka 字段（Integer类型），对应数据库 budaka 列（是否补打卡标记）
+
+==========================================
+文件5：checkin.vue（前端打卡页面）
+==========================================
+补丁位置：bugfix-patch\frontend\pages\checkin\checkin.vue
+覆盖到项目：frontend\pages\checkin\checkin.vue
+改动说明：
+  - 提交打卡时，kaishiriqi 和 jieshushijian 字段在发送前用 .substring(0,10) 截取为 YYYY-MM-DD 格式
+
+==========================================
+【部署步骤】
+==========================================
+
+第一步：停止后端服务
+  - 如果后端正在运行，先停止 Java 服务
+
+第二步：覆盖后端文件（共4个Java文件）
+  将以下文件复制覆盖到对应路径（保持目录结构不变）：
+
+  1. 将 bugfix-patch\backend-java\src\main\java\com\habit\controller\JihuadakaController.java
+     覆盖到 → 项目根目录\backend-java\src\main\java\com\habit\controller\JihuadakaController.java
+
+  2. 将 bugfix-patch\backend-java\src\main\java\com\habit\controller\XuexijihuaController.java
+     覆盖到 → 项目根目录\backend-java\src\main\java\com\habit\controller\XuexijihuaController.java
+
+  3. 将 bugfix-patch\backend-java\src\main\java\com\habit\controller\JihualishibiaoController.java
+     覆盖到 → 项目根目录\backend-java\src\main\java\com\habit\controller\JihualishibiaoController.java
+
+  4. 将 bugfix-patch\backend-java\src\main\java\com\habit\entity\Jihuadaka.java
+     覆盖到 → 项目根目录\backend-java\src\main\java\com\habit\entity\Jihuadaka.java
+
+第三步：重新编译并启动后端
+  打开命令行，进入 backend-java 目录，执行：
+  mvn clean compile
+  mvn spring-boot:run
+  （或者在IDE中重新运行项目）
+
+第四步：覆盖前端文件（共1个Vue文件）
+  将 bugfix-patch\frontend\pages\checkin\checkin.vue
+  覆盖到 → 项目根目录\frontend\pages\checkin\checkin.vue
+
+第五步：重新编译前端
+  如果是开发模式，HBuilderX 会自动热更新
+  如果需要发布，在 HBuilderX 中重新编译小程序
+
+第六步：验证
+  1. 打开小程序，进入任意计划
+  2. 点击"去打卡"
+  3. 填写信息后点击"完成打卡"
+  4. 确认不再出现日期格式报错，打卡成功
+
+==========================================
+【注意事项】
+==========================================
+- 本补丁不涉及数据库结构变更，无需修改数据库
+- budaka 字段在数据库中已存在（建表SQL中有），只是Java实体类之前遗漏了
+- 覆盖前建议备份原文件

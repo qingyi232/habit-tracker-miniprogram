@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>习惯自律养成 - 管理后台</title>
+  <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 登录页 -->
+    <div v-if="!isLoggedIn" class="login-container">
+      <div class="login-bg">
+        <div class="circle c1"></div>
+        <div class="circle c2"></div>
+        <div class="circle c3"></div>
+      </div>
+      <div class="login-card">
+        <div class="login-header">
+          <div class="logo-icon">🌱</div>
+          <h1>管理后台</h1>
+          <p>习惯自律养成小程序</p>
+        </div>
+        <div class="form-group">
+          <label>管理员账号</label>
+          <input v-model="loginForm.username" placeholder="请输入账号" @keyup.enter="handleLogin">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input v-model="loginForm.password" type="password" placeholder="请输入密码" @keyup.enter="handleLogin">
+        </div>
+        <button class="btn-primary full-width" @click="handleLogin" :disabled="loginLoading">
+          {{ loginLoading ? '登录中...' : '登 录' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 管理主界面 -->
+    <div v-else class="admin-layout">
+      <!-- 侧边栏 -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <span class="sidebar-logo">🌱</span>
+          <span class="sidebar-title">管理后台</span>
+        </div>
+        <div class="sidebar-menu">
+          <div :class="['menu-item', { active: currentPage === 'users' }]" @click="currentPage = 'users'">
+            <span class="menu-icon">👤</span>
+            <span>用户管理</span>
+          </div>
+          <div :class="['menu-item', { active: currentPage === 'plans' }]" @click="currentPage = 'plans'">
+            <span class="menu-icon">📋</span>
+            <span>学习计划管理</span>
+          </div>
+          <div :class="['menu-item', { active: currentPage === 'checkins' }]" @click="currentPage = 'checkins'">
+            <span class="menu-icon">✅</span>
+            <span>计划打卡管理</span>
+          </div>
+          <div :class="['menu-item', { active: currentPage === 'messages' }]" @click="currentPage = 'messages'">
+            <span class="menu-icon">💬</span>
+            <span>留言板管理</span>
+          </div>
+        </div>
+        <div class="sidebar-footer">
+          <button class="btn-logout" @click="handleLogout">退出登录</button>
+        </div>
+      </div>
+
+      <!-- 主内容区 -->
+      <div class="main-content">
+        <div class="top-bar">
+          <h2>{{ pageTitle }}</h2>
+          <div class="admin-info">
+            <span>管理员：{{ adminInfo.username }}</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <!-- 用户管理 -->
+          <div v-if="currentPage === 'users'">
+            <div class="toolbar">
+              <div class="search-box">
+                <input v-model="userSearch" placeholder="搜索账号/姓名" @keyup.enter="loadUsers">
+                <button class="btn-search" @click="loadUsers">搜索</button>
+              </div>
+              <button class="btn-primary" @click="openUserDialog()">添加用户</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>账号</th>
+                  <th>姓名</th>
+                  <th>性别</th>
+                  <th>年龄</th>
+                  <th>手机</th>
+                  <th>邮箱</th>
+                  <th>积分</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in users" :key="item.id">
+                  <td>{{ item.id }}</td>
+                  <td>{{ item.zhanghao }}</td>
+                  <td>{{ item.xingming }}</td>
+                  <td>{{ item.xingbie }}</td>
+                  <td>{{ item.nianling }}</td>
+                  <td>{{ item.shouji }}</td>
+                  <td>{{ item.youxiang }}</td>
+                  <td><span class="badge">{{ item.jifen }}</span></td>
+                  <td>
+                    <button class="btn-sm btn-edit" @click="openUserDialog(item)">编辑</button>
+                    <button class="btn-sm btn-delete" @click="deleteUser(item.id)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination" v-if="userTotal > 0">
+              <span>共 {{ userTotal }} 条</span>
+              <button :disabled="userPage <= 1" @click="userPage--; loadUsers()">上一页</button>
+              <span>第 {{ userPage }} 页</span>
+              <button :disabled="users.length < 10" @click="userPage++; loadUsers()">下一页</button>
+            </div>
+          </div>
+
+          <!-- 学习计划管理 -->
+          <div v-if="currentPage === 'plans'">
+            <div class="toolbar">
+              <div class="search-box">
+                <input v-model="planSearch" placeholder="搜索计划标题" @keyup.enter="loadPlans">
+                <button class="btn-search" @click="loadPlans">搜索</button>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>计划标题</th>
+                  <th>开始日期</th>
+                  <th>结束日期</th>
+                  <th>天数</th>
+                  <th>完成度</th>
+                  <th>用户</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in plans" :key="item.id">
+                  <td>{{ item.id }}</td>
+                  <td>{{ item.jihuabiaoti }}</td>
+                  <td>{{ formatDate(item.kaishiriqi) }}</td>
+                  <td>{{ formatDate(item.jieshushijian) }}</td>
+                  <td>{{ item.jihuatianshu }}</td>
+                  <td><span :class="['status-tag', item.wanchengdu === '已完成' ? 'done' : '']">{{ item.wanchengdu }}</span></td>
+                  <td>{{ item.xingming }}</td>
+                  <td>
+                    <button class="btn-sm btn-edit" @click="openPlanDialog(item)">编辑</button>
+                    <button class="btn-sm btn-delete" @click="deletePlan(item.id)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination" v-if="planTotal > 0">
+              <span>共 {{ planTotal }} 条</span>
+              <button :disabled="planPage <= 1" @click="planPage--; loadPlans()">上一页</button>
+              <span>第 {{ planPage }} 页</span>
+              <button :disabled="plans.length < 10" @click="planPage++; loadPlans()">下一页</button>
+            </div>
+          </div>
+
+          <!-- 计划打卡管理 -->
+          <div v-if="currentPage === 'checkins'">
+            <div class="toolbar">
+              <div class="search-box">
+                <input v-model="checkinSearch" placeholder="搜索计划标题" @keyup.enter="loadCheckins">
+                <button class="btn-search" @click="loadCheckins">搜索</button>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>计划标题</th>
+                  <th>打卡日期</th>
+                  <th>打卡天数</th>
+                  <th>打卡内容</th>
+                  <th>用户</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in checkins" :key="item.id">
+                  <td>{{ item.id }}</td>
+                  <td>{{ item.jihuabiaoti }}</td>
+                  <td>{{ formatDate(item.dakariqi) }}</td>
+                  <td>第 {{ item.dakatianshu }} 天</td>
+                  <td class="content-cell">{{ item.jihuaneirong }}</td>
+                  <td>{{ item.xingming }}</td>
+                  <td>
+                    <button class="btn-sm btn-delete" @click="deleteCheckin(item.id)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination" v-if="checkinTotal > 0">
+              <span>共 {{ checkinTotal }} 条</span>
+              <button :disabled="checkinPage <= 1" @click="checkinPage--; loadCheckins()">上一页</button>
+              <span>第 {{ checkinPage }} 页</span>
+              <button :disabled="checkins.length < 10" @click="checkinPage++; loadCheckins()">下一页</button>
+            </div>
+          </div>
+
+          <!-- 留言板管理 -->
+          <div v-if="currentPage === 'messages'">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>用户</th>
+                  <th>留言内容</th>
+                  <th>回复</th>
+                  <th>时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in messageList" :key="item.id">
+                  <td>{{ item.id }}</td>
+                  <td>{{ item.username }}</td>
+                  <td class="content-cell">{{ item.content }}</td>
+                  <td class="content-cell">{{ item.reply || '-' }}</td>
+                  <td>{{ formatDate(item.addtime) }}</td>
+                  <td>
+                    <button class="btn-sm btn-edit" @click="openReplyDialog(item)">回复</button>
+                    <button class="btn-sm btn-delete" @click="deleteMessage(item.id)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination" v-if="messageTotal > 0">
+              <span>共 {{ messageTotal }} 条</span>
+              <button :disabled="messagePage <= 1" @click="messagePage--; loadMessages()">上一页</button>
+              <span>第 {{ messagePage }} 页</span>
+              <button :disabled="messageList.length < 10" @click="messagePage++; loadMessages()">下一页</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 用户编辑弹窗 -->
+    <div class="modal-overlay" v-if="showUserDialog" @click.self="showUserDialog = false">
+      <div class="modal-card">
+        <h3>{{ editingUser ? '编辑用户' : '添加用户' }}</h3>
+        <div class="form-group"><label>账号</label><input v-model="userForm.zhanghao" placeholder="账号"></div>
+        <div class="form-group"><label>密码</label><input v-model="userForm.mima" type="password" placeholder="密码"></div>
+        <div class="form-group"><label>姓名</label><input v-model="userForm.xingming" placeholder="姓名"></div>
+        <div class="form-group"><label>性别</label>
+          <select v-model="userForm.xingbie"><option value="男">男</option><option value="女">女</option></select>
+        </div>
+        <div class="form-group"><label>年龄</label><input v-model="userForm.nianling" type="number" placeholder="年龄"></div>
+        <div class="form-group"><label>手机</label><input v-model="userForm.shouji" placeholder="手机号"></div>
+        <div class="form-group"><label>邮箱</label><input v-model="userForm.youxiang" placeholder="邮箱"></div>
+        <div class="form-group"><label>头像链接</label><input v-model="userForm.zhaopian" placeholder="头像URL"></div>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="showUserDialog = false">取消</button>
+          <button class="btn-primary" @click="saveUser">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 计划编辑弹窗 -->
+    <div class="modal-overlay" v-if="showPlanDialog" @click.self="showPlanDialog = false">
+      <div class="modal-card">
+        <h3>编辑计划</h3>
+        <div class="form-group"><label>计划标题</label><input v-model="planForm.jihuabiaoti" placeholder="计划标题"></div>
+        <div class="form-group"><label>开始日期</label><input v-model="planForm.kaishiriqi" type="date"></div>
+        <div class="form-group"><label>结束日期</label><input v-model="planForm.jieshushijian" type="date"></div>
+        <div class="form-group"><label>计划天数</label><input v-model="planForm.jihuatianshu" type="number"></div>
+        <div class="form-group"><label>完成度</label>
+          <select v-model="planForm.wanchengdu"><option value="未完成">未完成</option><option value="已完成">已完成</option></select>
+        </div>
+        <div class="form-group"><label>计划内容</label><textarea v-model="planForm.jihuaneirong" rows="3"></textarea></div>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="showPlanDialog = false">取消</button>
+          <button class="btn-primary" @click="savePlan">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 回复弹窗 -->
+    <div class="modal-overlay" v-if="showReplyDialog" @click.self="showReplyDialog = false">
+      <div class="modal-card">
+        <h3>回复留言</h3>
+        <div class="reply-original">
+          <strong>{{ replyTarget.username }}：</strong>{{ replyTarget.content }}
+        </div>
+        <div class="form-group"><label>回复内容</label><textarea v-model="replyContent" rows="4" placeholder="输入回复内容"></textarea></div>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="showReplyDialog = false">取消</button>
+          <button class="btn-primary" @click="saveReply">回复</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

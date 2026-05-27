@@ -1,0 +1,139 @@
+========================================
+  习惯小程序 · 7项新功能升级包 覆盖教程
+========================================
+
+【升级前注意】
+1. 请先备份项目！把原项目文件夹复制一份以防万一
+2. 升级包中的文件按原路径覆盖即可
+
+========================================
+一、前端文件覆盖（共 9 个文件）
+========================================
+
+将以下文件复制到项目对应位置，直接覆盖同名文件：
+
+1. frontend/pages.json
+   → 覆盖到：项目根目录/frontend/pages.json
+
+2. frontend/pages/create-plan/create-plan.vue  （修改：新增模版选择）
+   → 覆盖到：项目根目录/frontend/pages/create-plan/create-plan.vue
+
+3. frontend/pages/plan-detail/plan-detail.vue  （修改：打卡统计+提醒）
+   → 覆盖到：项目根目录/frontend/pages/plan-detail/plan-detail.vue
+
+4. frontend/pages/checkin/checkin.vue  （修改：补打卡功能）
+   → 覆盖到：项目根目录/frontend/pages/checkin/checkin.vue
+
+5. frontend/pages/community/community.vue  （修改：点赞评论+活动）
+   → 覆盖到：项目根目录/frontend/pages/community/community.vue
+
+6. frontend/pages/index/index.vue  （修改：打卡提醒检查）
+   → 覆盖到：项目根目录/frontend/pages/index/index.vue
+
+7. frontend/pages/my/my.vue  （修改：新增日历入口）
+   → 覆盖到：项目根目录/frontend/pages/my/my.vue
+
+8. frontend/pages/calendar/calendar.vue  （新增：日历视图页面）
+   → 放到：项目根目录/frontend/pages/calendar/ 文件夹下
+   ⚠ 如果没有 calendar 文件夹，先手动创建
+
+========================================
+二、后端文件覆盖（共 5 个文件）
+========================================
+
+1. backend/app.js  （修改：注册了3个新路由）
+   → 覆盖到：项目根目录/backend/app.js
+
+2. backend/routes/checkin.js  （修改：支持jihuaid查询+补打卡字段）
+   → 覆盖到：项目根目录/backend/routes/checkin.js
+
+3. backend/routes/like.js  （新增：点赞功能路由）
+   → 放到：项目根目录/backend/routes/like.js
+
+4. backend/routes/comment.js  （新增：评论功能路由）
+   → 放到：项目根目录/backend/routes/comment.js
+
+5. backend/routes/activity.js  （新增：打卡活动路由）
+   → 放到：项目根目录/backend/routes/activity.js
+
+========================================
+三、数据库升级（必做！）
+========================================
+
+在 MySQL 中执行以下 SQL 语句，创建 4 张新表 + 给打卡表加字段：
+
+-- 1. 点赞表
+CREATE TABLE IF NOT EXISTS dianzan (
+  id BIGINT(20) NOT NULL AUTO_INCREMENT,
+  addtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  liuyanid BIGINT(20) NOT NULL COMMENT '留言ID',
+  userid BIGINT(20) NOT NULL COMMENT '点赞人ID',
+  username VARCHAR(200) DEFAULT NULL COMMENT '点赞人用户名',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_liuyan_user (liuyanid, userid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2. 评论表
+CREATE TABLE IF NOT EXISTS pinglun (
+  id BIGINT(20) NOT NULL AUTO_INCREMENT,
+  addtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  liuyanid BIGINT(20) NOT NULL COMMENT '留言ID',
+  userid BIGINT(20) NOT NULL COMMENT '评论人ID',
+  username VARCHAR(200) DEFAULT NULL COMMENT '评论人用户名',
+  content TEXT NOT NULL COMMENT '评论内容',
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 3. 社区打卡活动表
+CREATE TABLE IF NOT EXISTS shequ_huodong (
+  id BIGINT(20) NOT NULL AUTO_INCREMENT,
+  addtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  title VARCHAR(200) NOT NULL COMMENT '活动标题',
+  description TEXT DEFAULT NULL COMMENT '活动描述',
+  image VARCHAR(500) DEFAULT NULL COMMENT '活动图片',
+  days INT(11) NOT NULL COMMENT '活动天数(7/14/21)',
+  start_date DATE NOT NULL COMMENT '开始日期',
+  end_date DATE NOT NULL COMMENT '结束日期',
+  status VARCHAR(20) DEFAULT 'active' COMMENT '状态:active/ended',
+  admin_id BIGINT(20) DEFAULT NULL COMMENT '创建管理员ID',
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 4. 活动参与表
+CREATE TABLE IF NOT EXISTS huodong_canyuzhe (
+  id BIGINT(20) NOT NULL AUTO_INCREMENT,
+  addtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  huodong_id BIGINT(20) NOT NULL COMMENT '活动ID',
+  userid BIGINT(20) NOT NULL COMMENT '用户ID',
+  username VARCHAR(200) DEFAULT NULL COMMENT '用户名',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_activity_user (huodong_id, userid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. 给打卡表加补打卡字段（如果已有该字段会报错可忽略）
+ALTER TABLE jihuadaka ADD COLUMN budaka TINYINT(1) DEFAULT 0 COMMENT '是否补打卡:0否1是';
+
+========================================
+四、重启服务
+========================================
+
+1. 停止后端 Node 服务（Ctrl+C）
+2. 进入 backend 目录
+3. 执行：node app.js
+4. 前端用微信开发者工具重新编译
+
+========================================
+五、新增功能说明
+========================================
+
+(1) 打卡提醒：计划详情页可开启提醒，设置时间，进入首页时自动弹窗提醒
+(2) 预设模版：创建计划页顶部可快速选择：减肥/读书/运动/喝水/练字/早起
+(3) 补打卡：打卡时可选择过去日期，显示"补打卡"标记
+(4) 日历视图：我的 → 打卡日历，支持周/月视图，点击查看当天记录
+(5) 管理员活动：管理员通过API创建7/14/21天活动，社区页自动展示，用户可参与
+(6) 打卡数据：计划详情页新增打卡次数/打卡率/连续天数/剩余天数/进度条
+(7) 点赞评论：社区每条留言下方可点赞❤️和评论💬
+
+========================================
+如有问题请联系开发人员！
+========================================
